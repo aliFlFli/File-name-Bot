@@ -97,15 +97,17 @@ const glassMainKeyboard = {
   reply_markup: {
     inline_keyboard: [
       [
-        { text: '🎬 شروع عملیات', callback_data: 'glass_start', style: 'primary' },
-        { text: '📊 وضعیت فعلی', callback_data: 'glass_status', style: 'success' }
+        { text: '🎬 شروع عملیات', callback_data: 'glass_start', style: 'primary' }
       ],
       [
-        { text: '↩️ حذف آخرین 🔄', callback_data: 'glass_undo', style: 'danger' },
+        { text: '📊 وضعیت فعلی', callback_data: 'glass_status', style: 'success' },
+        { text: '↩️ حذف آخرین', callback_data: 'glass_undo', style: 'danger' },
         { text: '✅ پایان آپلود', callback_data: 'glass_done', style: 'success' }
       ],
       [
-        { text: '❌ لغو عملیات', callback_data: 'glass_cancel', style: 'danger' },
+        { text: '❌ لغو عملیات', callback_data: 'glass_cancel', style: 'danger' }
+      ],
+      [
         { text: '📚 راهنما', callback_data: 'glass_help', style: 'primary' }
       ]
     ]
