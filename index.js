@@ -31,15 +31,15 @@ const episodeNames = [
   'نهم',
   'دهم',
   'یازدهم',
-  'دوازدهم',
+  'دوازدهم و آخر',
   'سیزدهم',
   'چهاردهم',
   'پانزدهم',
-  'شانزدهم',
+  'شانزدهم و آخر',
   'هفدهم',
   'هجدهم',
   'نوزدهم',
-  'بیستم'
+  'بیستم و آخر'
 ];
 
 function getEpisodeName(num) {
@@ -63,7 +63,7 @@ bot.start(async (ctx) => {
     fileCount: 0
   };
 
-  await ctx.reply('🎬 اسم سریال را ارسال کن');
+  await ctx.reply('🎬 اســم سریـالـت رو بفـرسـت.');
 });
 
 // =======================
@@ -122,7 +122,7 @@ bot.on(['video', 'document'], async (ctx) => {
 
     const caption =
 `🎥 سریال "${ctx.session.hashtag}"
-• قسمت ${episodeName}
+💠 قسمت ${episodeName}
 🔸 کیفیت ${quality}
 🔹 زیرنویس چسبیده فارسی
 🌐 @KoreaMixPlus • @FaKorea 🌐`;
