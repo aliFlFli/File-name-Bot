@@ -122,13 +122,9 @@ bot.on(['video', 'document'], async (ctx) => {
 
     const caption =
 `🎥 سریال "${ctx.session.hashtag}"
-
-🔘 قسمت ${episodeName}
-
+• قسمت ${episodeName}
 🔸 کیفیت ${quality}
-
 🔹 زیرنویس چسبیده فارسی
-
 🌐 @KoreaMixPlus • @FaKorea 🌐`;
 
     // =======================
