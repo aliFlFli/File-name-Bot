@@ -9,17 +9,17 @@ bot.use(session());
 const ADMIN_ID = Number(process.env.ADMIN_ID);
 const CHANNEL_ID = Number(process.env.CHANNEL_ID);
 
-// =========================
+// =======================
 // کیفیت‌ها
-// =========================
+// =======================
 
 const QUALITIES = ['540P', '720P'];
 
-// =========================
+// =======================
 // نام قسمت‌ها
-// =========================
+// =======================
 
-const persianEpisodes = [
+const episodeNames = [
   'اول',
   'دوم',
   'سوم',
@@ -39,26 +39,16 @@ const persianEpisodes = [
   'هفدهم',
   'هجدهم',
   'نوزدهم',
-  'بیستم',
-  'بیست و یکم',
-  'بیست و دوم',
-  'بیست و سوم',
-  'بیست و چهارم',
-  'بیست و پنجم',
-  'بیست و ششم',
-  'بیست و هفتم',
-  'بیست و هشتم',
-  'بیست و نهم',
-  'سی‌ام'
+  'بیستم'
 ];
 
-function getEpisodeName(number) {
-  return persianEpisodes[number - 1] || number;
+function getEpisodeName(num) {
+  return episodeNames[num - 1] || num;
 }
 
-// =========================
+// =======================
 // استارت
-// =========================
+// =======================
 
 bot.start(async (ctx) => {
 
@@ -67,41 +57,42 @@ bot.start(async (ctx) => {
   }
 
   ctx.session = {
-    step: 'series_name',
-    episode: 1,
-    qualityIndex: 0
+    step: 'series',
+    series: '',
+    hashtag: '',
+    fileCount: 0
   };
 
   await ctx.reply('🎬 اسم سریال را ارسال کن');
 });
 
-// =========================
+// =======================
 // گرفتن اسم سریال
-// =========================
+// =======================
 
 bot.on('text', async (ctx) => {
 
   if (ctx.from.id !== ADMIN_ID) return;
 
-  if (ctx.session?.step === 'series_name') {
+  if (ctx.session?.step === 'series') {
 
-    const name = ctx.message.text.trim();
+    const series = ctx.message.text.trim();
 
-    const hashtag = '#' + name.replace(/\s+/g, '_');
+    const hashtag = '#' + series.replace(/\s+/g, '_');
 
-    ctx.session.seriesName = name;
+    ctx.session.series = series;
     ctx.session.hashtag = hashtag;
     ctx.session.step = 'upload';
 
     return ctx.reply(
-      '✅ حالا فایل‌ها را دوتادوتا ارسال کن\n\nاول: 540P\nدوم: 720P'
+      '✅ حالا فایل‌ها را بفرست\n\nترتیب:\n540P → 720P'
     );
   }
 });
 
-// =========================
-// ارسال فایل
-// =========================
+// =======================
+// آپلود فایل
+// =======================
 
 bot.on(['video', 'document'], async (ctx) => {
 
@@ -113,14 +104,24 @@ bot.on(['video', 'document'], async (ctx) => {
 
   try {
 
-    const episode = ctx.session.episode;
+    // =======================
+    // محاسبه قسمت و کیفیت
+    // =======================
 
-    const quality = QUALITIES[ctx.session.qualityIndex];
+    const current = ctx.session.fileCount;
+
+    const episode = Math.floor(current / 2) + 1;
+
+    const quality = QUALITIES[current % 2];
 
     const episodeName = getEpisodeName(episode);
 
+    // =======================
+    // کپشن
+    // =======================
+
     const caption =
-`🎥 سریال " ${ctx.session.hashtag} "
+`🎥 سریال "${ctx.session.hashtag}"
 
 🔘 قسمت ${episodeName}
 
@@ -130,34 +131,32 @@ bot.on(['video', 'document'], async (ctx) => {
 
 🌐 @KoreaMixPlus • @FaKorea 🌐`;
 
-    // =========================
-    // فایل
-    // =========================
+    // =======================
+    // افزایش شمارنده
+    // =======================
+
+    ctx.session.fileCount++;
+
+    // =======================
+    // ارسال
+    // =======================
 
     if (ctx.message.document) {
 
-      const fileId = ctx.message.document.file_id;
-
       await bot.telegram.sendDocument(
         CHANNEL_ID,
-        fileId,
+        ctx.message.document.file_id,
         {
           caption
         }
       );
     }
 
-    // =========================
-    // ویدیو
-    // =========================
-
     else if (ctx.message.video) {
-
-      const fileId = ctx.message.video.file_id;
 
       await bot.telegram.sendVideo(
         CHANNEL_ID,
-        fileId,
+        ctx.message.video.file_id,
         {
           caption
         }
@@ -165,21 +164,8 @@ bot.on(['video', 'document'], async (ctx) => {
     }
 
     await ctx.reply(
-      `✅ قسمت ${episodeName} • ${quality} ارسال شد`
+      `✅ قسمت ${episodeName} • ${quality}`
     );
-
-    // =========================
-    // مدیریت کیفیت و قسمت
-    // =========================
-
-    ctx.session.qualityIndex++;
-
-    if (ctx.session.qualityIndex >= QUALITIES.length) {
-
-      ctx.session.qualityIndex = 0;
-
-      ctx.session.episode++;
-    }
 
   } catch (err) {
 
@@ -189,9 +175,9 @@ bot.on(['video', 'document'], async (ctx) => {
   }
 });
 
-// =========================
+// =======================
 // پایان
-// =========================
+// =======================
 
 bot.command('done', async (ctx) => {
 
@@ -202,9 +188,9 @@ bot.command('done', async (ctx) => {
   await ctx.reply('✅ عملیات پایان یافت');
 });
 
-// =========================
+// =======================
 // اجرا
-// =========================
+// =======================
 
 bot.launch();
 
