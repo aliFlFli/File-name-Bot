@@ -90,7 +90,7 @@ function getEpisodeName(num) {
 }
 
 // =====================================
-// 🎨 GLASS BUTTONS KEYBOARD
+// GLASS BUTTONS KEYBOARD
 // =====================================
 
 const glassMainKeyboard = {
@@ -208,7 +208,7 @@ async function safeSend(method, ...args) {
 }
 
 // =====================================
-// 🎨 COMMANDS
+// COMMANDS
 // =====================================
 
 bot.start(async (ctx) => {
@@ -269,7 +269,7 @@ bot.command('undo', async (ctx) => {
 });
 
 // =====================================
-// 🎨 CALLBACK HANDLERS
+// CALLBACK HANDLERS
 // =====================================
 
 bot.action('glass_start', async (ctx) => {
@@ -507,7 +507,7 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
 });
 
-process.on('unhandledRejection', (err) {
+process.on('unhandledRejection', (err) => {
   log(`UNHANDLED: ${err}`);
   console.error('Unhandled Rejection:', err);
 });
