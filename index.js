@@ -429,7 +429,7 @@ bot.on(['document', 'video'], async (ctx) => {
   const episodeName = getEpisodeName(episode);
   
   const caption = `<b>✨ سریال "${sessionData.hashtag}"
-• قسمت ${episodeName}
+💠 قسمت ${episodeName}
 🔸 کیفیت ${quality}
 🔹 زیرنویس چسبیده فارسی
 🌐 @KoreaMixPlus • @FaKorea 🌐</b>`;
