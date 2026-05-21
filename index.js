@@ -18,15 +18,28 @@ const CHANNEL_ID = Number(process.env.CHANNEL_ID);
 const QUALITIES = ['540P', '720P', '1080P'];
 
 const DATA_DIR = path.join(__dirname, 'data');
-const SESSION_FILE = path.join(DATA_DIR, 'sessions.json');
-const LOG_FILE = path.join(DATA_DIR, 'bot.log');
+
+const SESSION_FILE =
+  path.join(DATA_DIR, 'sessions.json');
+
+const LOG_FILE =
+  path.join(DATA_DIR, 'bot.log');
+
+// =====================================
+// CREATE DATA DIR
+// =====================================
 
 if (!fs.existsSync(DATA_DIR)) {
+
   fs.mkdirSync(DATA_DIR);
 }
 
 if (!fs.existsSync(SESSION_FILE)) {
-  fs.writeFileSync(SESSION_FILE, JSON.stringify({}));
+
+  fs.writeFileSync(
+    SESSION_FILE,
+    JSON.stringify({})
+  );
 }
 
 // =====================================
@@ -52,7 +65,10 @@ function loadSessions() {
   try {
 
     return JSON.parse(
-      fs.readFileSync(SESSION_FILE, 'utf8')
+      fs.readFileSync(
+        SESSION_FILE,
+        'utf8'
+      )
     );
 
   } catch {
@@ -99,6 +115,7 @@ function deleteUserSession(userId) {
 // =====================================
 
 const episodeNames = [
+
   'اول',
   'دوم',
   'سوم',
@@ -127,17 +144,17 @@ function getEpisodeName(num) {
 }
 
 // =====================================
-// HELP
+// HELP MESSAGE
 // =====================================
 
 const helpMessage = `
 <b>📚 راهنمای ربات آپلود سریال</b>
 
-/start - شروع
-/status - وضعیت
+/start - شروع عملیات
+/status - وضعیت فعلی
 /undo - حذف آخرین فایل
-/done - پایان
-/cancel - لغو
+/done - پایان عملیات
+/cancel - لغو عملیات
 /help - راهنما
 
 ✅ ذخیره دائمی سشن
@@ -148,14 +165,16 @@ const helpMessage = `
 `;
 
 // =====================================
-// MIDDLEWARE
+// SECURITY MIDDLEWARE
 // =====================================
 
 bot.use(async (ctx, next) => {
 
-  if (ctx.from?.id !== ADMIN_ID) {
+  if (!ctx.from) return;
 
-    return ctx.reply('⛔ دسترسی ندارید');
+  if (ctx.from.id !== ADMIN_ID) {
+
+    return;
   }
 
   try {
@@ -184,21 +203,33 @@ function generateHashtag(text) {
 
   return '#'
     + text
-      .replace(/[^a-zA-Z0-9آ-ی\s]/g, '')
+      .replace(
+        /[^a-zA-Z0-9آ-ی\s]/g,
+        ''
+      )
       .replace(/\s+/g, '_');
 }
 
 function detectQuality(fileName = '') {
 
-  const name = fileName.toLowerCase();
+  const name =
+    fileName.toLowerCase();
 
-  if (name.includes('1080')) return '1080P';
+  if (name.includes('1080')) {
+    return '1080P';
+  }
 
-  if (name.includes('720')) return '720P';
+  if (name.includes('720')) {
+    return '720P';
+  }
 
-  if (name.includes('540')) return '540P';
+  if (name.includes('540')) {
+    return '540P';
+  }
 
-  if (name.includes('480')) return '480P';
+  if (name.includes('480')) {
+    return '480P';
+  }
 
   return null;
 }
@@ -220,7 +251,8 @@ function detectEpisode(fileName = '') {
 
   for (const pattern of patterns) {
 
-    const match = fileName.match(pattern);
+    const match =
+      fileName.match(pattern);
 
     if (match) {
 
@@ -231,7 +263,10 @@ function detectEpisode(fileName = '') {
   return null;
 }
 
-async function safeSend(method, ...args) {
+async function safeSend(
+  method,
+  ...args
+) {
 
   try {
 
@@ -239,15 +274,22 @@ async function safeSend(method, ...args) {
 
   } catch (err) {
 
-    if (err.parameters?.retry_after) {
+    if (
+      err.parameters?.retry_after
+    ) {
 
       const retry =
         err.parameters.retry_after;
 
-      log(`FloodWait ${retry}s`);
+      log(
+        `FloodWait ${retry}s`
+      );
 
       await new Promise(res =>
-        setTimeout(res, retry * 1000)
+        setTimeout(
+          res,
+          retry * 1000
+        )
       );
 
       return await method(...args);
@@ -297,9 +339,12 @@ bot.start(async (ctx) => {
 
 bot.command('help', async (ctx) => {
 
-  await ctx.reply(helpMessage, {
-    parse_mode: 'HTML'
-  });
+  await ctx.reply(
+    helpMessage,
+    {
+      parse_mode: 'HTML'
+    }
+  );
 });
 
 // =====================================
@@ -318,17 +363,18 @@ bot.command('status', async (ctx) => {
     );
   }
 
-  const nextEpisode =
-    sessionData.fileCount + 1;
-
   await ctx.reply(
 `
 <b>📊 وضعیت فعلی</b>
 
-🎬 سریال: ${sessionData.series}
-🏷 هشتگ: ${sessionData.hashtag}
-📁 فایل‌ها: ${sessionData.fileCount}
-📌 قسمت بعدی: ${nextEpisode}
+🎬 سریال:
+${sessionData.series}
+
+🏷 هشتگ:
+${sessionData.hashtag}
+
+📁 فایل‌ها:
+${sessionData.fileCount}
 `,
     {
       parse_mode: 'HTML'
@@ -342,7 +388,9 @@ bot.command('status', async (ctx) => {
 
 bot.command('cancel', async (ctx) => {
 
-  deleteUserSession(ctx.from.id);
+  deleteUserSession(
+    ctx.from.id
+  );
 
   await ctx.reply(
     '❌ عملیات لغو شد'
@@ -368,13 +416,17 @@ bot.command('done', async (ctx) => {
   const total =
     sessionData.fileCount;
 
-  deleteUserSession(ctx.from.id);
+  deleteUserSession(
+    ctx.from.id
+  );
 
   await ctx.reply(
 `
 <b>✅ عملیات پایان یافت</b>
 
-📁 تعداد فایل‌ها: ${total}
+📁 تعداد فایل‌ها:
+${total}
+
 🎉 آپلود کامل شد
 `,
     {
@@ -429,8 +481,11 @@ bot.command('undo', async (ctx) => {
 `
 <b>↩️ آخرین فایل حذف شد</b>
 
-📀 قسمت: ${last.episode}
-🔸 کیفیت: ${last.quality}
+📀 قسمت:
+${last.episode}
+
+🔸 کیفیت:
+${last.quality}
 `,
       {
         parse_mode: 'HTML'
@@ -439,7 +494,10 @@ bot.command('undo', async (ctx) => {
 
   } catch (err) {
 
-    log(`UNDO ERROR: ${err.message}`);
+    log(
+      `UNDO ERROR:
+${err.message}`
+    );
 
     await ctx.reply(
       '❌ حذف فایل ناموفق بود'
@@ -451,62 +509,70 @@ bot.command('undo', async (ctx) => {
 // SERIES NAME
 // =====================================
 
-bot.on('text', async (ctx, next) => {
+bot.on(
+  'text',
+  async (ctx, next) => {
 
-  const sessionData =
-    getUserSession(ctx.from.id);
+    const sessionData =
+      getUserSession(
+        ctx.from.id
+      );
 
-  if (!sessionData) {
+    if (!sessionData) {
 
-    return next();
-  }
+      return next();
+    }
 
-  if (
-    sessionData.step !== 'series'
-  ) {
+    if (
+      sessionData.step !==
+      'series'
+    ) {
 
-    return next();
-  }
+      return next();
+    }
 
-  const series =
-    ctx.message.text.trim();
+    const series =
+      ctx.message.text.trim();
 
-  if (
-    series.length < 2 ||
-    series.length > 100
-  ) {
+    if (
+      series.length < 2 ||
+      series.length > 100
+    ) {
 
-    return ctx.reply(
-      '⚠️ اسم سریال نامعتبر است'
+      return ctx.reply(
+        '⚠️ اسم سریال نامعتبر است'
+      );
+    }
+
+    sessionData.series =
+      series;
+
+    sessionData.hashtag =
+      generateHashtag(series);
+
+    sessionData.step =
+      'upload';
+
+    setUserSession(
+      ctx.from.id,
+      sessionData
     );
-  }
 
-  sessionData.series = series;
-
-  sessionData.hashtag =
-    generateHashtag(series);
-
-  sessionData.step = 'upload';
-
-  setUserSession(
-    ctx.from.id,
-    sessionData
-  );
-
-  await ctx.reply(
+    await ctx.reply(
 `
 <b>✅ سریال ثبت شد</b>
 
 🎬 ${series}
 🏷 ${sessionData.hashtag}
 
-📤 فایل‌ها را ارسال کن
+📤 حالا فایل‌ها را ارسال کن
 `,
-    {
-      parse_mode: 'HTML'
-    }
-  );
-});
+      {
+        parse_mode: 'HTML'
+      }
+    );
+  }
+);
 
 // =====================================
 // FILE UPLOAD
@@ -517,7 +583,9 @@ bot.on(
   async (ctx) => {
 
     const sessionData =
-      getUserSession(ctx.from.id);
+      getUserSession(
+        ctx.from.id
+      );
 
     if (!sessionData) {
 
@@ -527,7 +595,8 @@ bot.on(
     }
 
     if (
-      sessionData.step !== 'upload'
+      sessionData.step !==
+      'upload'
     ) {
 
       return ctx.reply(
@@ -540,9 +609,16 @@ bot.on(
       || ctx.message.video;
 
     const fileName =
-      file.file_name || 'Unknown';
+      file.file_name
+      || 'Unknown';
 
-    log(`UPLOAD: ${fileName}`);
+    log(
+      `UPLOAD: ${fileName}`
+    );
+
+    // =====================
+    // QUALITY
+    // =====================
 
     let quality =
       detectQuality(fileName);
@@ -556,6 +632,10 @@ bot.on(
         ];
     }
 
+    // =====================
+    // EPISODE
+    // =====================
+
     let episode =
       detectEpisode(fileName);
 
@@ -568,28 +648,32 @@ bot.on(
     const episodeName =
       getEpisodeName(episode);
 
-    const caption = `
-<b>
-🎬 ${sessionData.series}
-🏷 ${sessionData.hashtag}
+    // =====================
+    // CAPTION
+    // =====================
 
-📀 قسمت ${episodeName}
+    const caption =
+`<b>🎥 سریال "${sessionData.hashtag}"
+• قسمت ${episodeName}
 🔸 کیفیت ${quality}
-🔹 زیرنویس فارسی
-
-🌐 @KoreaMixPlus
-</b>`;
+🔹 زیرنویس چسبیده فارسی
+🌐 @KoreaMixPlus • @FaKorea 🌐</b>`;
 
     let sent;
 
     try {
 
+      // =====================
+      // SEND DOCUMENT
+      // =====================
+
       if (ctx.message.document) {
 
         sent = await safeSend(
-          bot.telegram.sendDocument.bind(
-            bot.telegram
-          ),
+
+          bot.telegram
+            .sendDocument
+            .bind(bot.telegram),
 
           CHANNEL_ID,
 
@@ -605,12 +689,17 @@ bot.on(
         );
       }
 
+      // =====================
+      // SEND VIDEO
+      // =====================
+
       else {
 
         sent = await safeSend(
-          bot.telegram.sendVideo.bind(
-            bot.telegram
-          ),
+
+          bot.telegram
+            .sendVideo
+            .bind(bot.telegram),
 
           CHANNEL_ID,
 
@@ -624,20 +713,26 @@ bot.on(
         );
       }
 
-      sessionData.uploadedFiles.push({
+      // =====================
+      // SAVE FILE
+      // =====================
 
-        messageId:
-          sent.message_id,
+      sessionData
+        .uploadedFiles
+        .push({
 
-        episode,
+          messageId:
+            sent.message_id,
 
-        quality,
+          episode,
 
-        fileName,
+          quality,
 
-        uploadedAt:
-          Date.now()
-      });
+          fileName,
+
+          uploadedAt:
+            Date.now()
+        });
 
       sessionData.fileCount++;
 
@@ -645,6 +740,10 @@ bot.on(
         ctx.from.id,
         sessionData
       );
+
+      // =====================
+      // SUCCESS MESSAGE
+      // =====================
 
       await ctx.reply(
 `
@@ -664,7 +763,8 @@ ${sessionData.fileCount}
     } catch (err) {
 
       log(
-        `SEND ERROR: ${err.message}`
+        `SEND ERROR:
+${err.message}`
       );
 
       await ctx.reply(
@@ -682,12 +782,15 @@ ${err.message}
 // UNKNOWN
 // =====================================
 
-bot.on('message', async (ctx) => {
+bot.on(
+  'message',
+  async (ctx) => {
 
-  await ctx.reply(
-    '⚠️ پیام نامعتبر'
-  );
-});
+    await ctx.reply(
+      '⚠️ پیام نامعتبر'
+    );
+  }
+);
 
 // =====================================
 // BOT START
@@ -706,7 +809,8 @@ process.on(
   (err) => {
 
     log(
-      `UNCAUGHT: ${err.message}`
+      `UNCAUGHT:
+${err.message}`
     );
   }
 );
@@ -716,7 +820,8 @@ process.on(
   (err) => {
 
     log(
-      `UNHANDLED: ${err}`
+      `UNHANDLED:
+${err}`
     );
   }
 );
