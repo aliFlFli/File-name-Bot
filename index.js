@@ -7,13 +7,19 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
 
 const ADMIN_ID = Number(process.env.ADMIN_ID);
-const CHANNEL_ID = process.env.CHANNEL_ID;
+const CHANNEL_ID = Number(process.env.CHANNEL_ID);
 
 // =========================
-// تبدیل عدد به فارسی
+// کیفیت‌ها
 // =========================
 
-const persianNumbers = [
+const QUALITIES = ['540P', '720P'];
+
+// =========================
+// نام قسمت‌ها
+// =========================
+
+const persianEpisodes = [
   'اول',
   'دوم',
   'سوم',
@@ -47,7 +53,7 @@ const persianNumbers = [
 ];
 
 function getEpisodeName(number) {
-  return persianNumbers[number - 1] || `${number}`;
+  return persianEpisodes[number - 1] || number;
 }
 
 // =========================
@@ -62,48 +68,39 @@ bot.start(async (ctx) => {
 
   ctx.session = {
     step: 'series_name',
-    episode: 1
+    episode: 1,
+    qualityIndex: 0
   };
 
   await ctx.reply('🎬 اسم سریال را ارسال کن');
 });
 
 // =========================
-// متن‌ها
+// گرفتن اسم سریال
 // =========================
 
 bot.on('text', async (ctx) => {
 
   if (ctx.from.id !== ADMIN_ID) return;
 
-  // مرحله اسم سریال
   if (ctx.session?.step === 'series_name') {
 
-    const seriesName = ctx.message.text.trim();
+    const name = ctx.message.text.trim();
 
-    const hashtag = '#' + seriesName.replace(/\s+/g, '_');
+    const hashtag = '#' + name.replace(/\s+/g, '_');
 
-    ctx.session.seriesName = seriesName;
+    ctx.session.seriesName = name;
     ctx.session.hashtag = hashtag;
-    ctx.session.step = 'quality';
-
-    return ctx.reply('🎞 کیفیت را وارد کن\nمثال: 720p');
-  }
-
-  // مرحله کیفیت
-  if (ctx.session?.step === 'quality') {
-
-    ctx.session.quality = ctx.message.text.trim();
     ctx.session.step = 'upload';
 
     return ctx.reply(
-      '✅ حالا فایل‌های ویدیویی را بفرست\n\nهر فایل = یک قسمت'
+      '✅ حالا فایل‌ها را دوتادوتا ارسال کن\n\nاول: 540P\nدوم: 720P'
     );
   }
 });
 
 // =========================
-// ویدیو و فایل
+// ارسال فایل
 // =========================
 
 bot.on(['video', 'document'], async (ctx) => {
@@ -111,42 +108,33 @@ bot.on(['video', 'document'], async (ctx) => {
   if (ctx.from.id !== ADMIN_ID) return;
 
   if (ctx.session?.step !== 'upload') {
-    return ctx.reply('⚠ اول /start را بزن');
+    return ctx.reply('⚠️ اول /start را بزن');
   }
 
-  const episodeNumber = ctx.session.episode;
+  try {
 
-  const episodeName = getEpisodeName(episodeNumber);
+    const episode = ctx.session.episode;
 
-  const caption =
+    const quality = QUALITIES[ctx.session.qualityIndex];
+
+    const episodeName = getEpisodeName(episode);
+
+    const caption =
 `🎥 سریال " ${ctx.session.hashtag} "
 
 🔘 قسمت ${episodeName}
 
-🔸 کیفیت ${ctx.session.quality.toUpperCase()}
+🔸 کیفیت ${quality}
 
 🔹 زیرنویس چسبیده فارسی
 
 🌐 @KoreaMixPlus • @FaKorea 🌐`;
 
-  try {
+    // =========================
+    // فایل
+    // =========================
 
-    // اگر ویدیو بود
-    if (ctx.message.video) {
-
-      const fileId = ctx.message.video.file_id;
-
-      await bot.telegram.sendVideo(
-        CHANNEL_ID,
-        fileId,
-        {
-          caption
-        }
-      );
-    }
-
-    // اگر فایل بود
-    else if (ctx.message.document) {
+    if (ctx.message.document) {
 
       const fileId = ctx.message.document.file_id;
 
@@ -159,17 +147,45 @@ bot.on(['video', 'document'], async (ctx) => {
       );
     }
 
+    // =========================
+    // ویدیو
+    // =========================
+
+    else if (ctx.message.video) {
+
+      const fileId = ctx.message.video.file_id;
+
+      await bot.telegram.sendVideo(
+        CHANNEL_ID,
+        fileId,
+        {
+          caption
+        }
+      );
+    }
+
     await ctx.reply(
-      `✅ قسمت ${episodeName} ارسال شد`
+      `✅ قسمت ${episodeName} • ${quality} ارسال شد`
     );
 
-    ctx.session.episode++;
+    // =========================
+    // مدیریت کیفیت و قسمت
+    // =========================
+
+    ctx.session.qualityIndex++;
+
+    if (ctx.session.qualityIndex >= QUALITIES.length) {
+
+      ctx.session.qualityIndex = 0;
+
+      ctx.session.episode++;
+    }
 
   } catch (err) {
 
     console.log(err);
 
-    ctx.reply('❌ خطا در ارسال فایل');
+    ctx.reply('❌ خطا در ارسال');
   }
 });
 
@@ -187,9 +203,9 @@ bot.command('done', async (ctx) => {
 });
 
 // =========================
-// ران
+// اجرا
 // =========================
 
 bot.launch();
 
-console.log('🤖 Bot is running...');
+console.log('🤖 Bot Started...');
