@@ -1,193 +1,218 @@
 require('dotenv').config();
 
-const { Telegraf } = require('telegraf');
+const { Telegraf, session } = require('telegraf');
+
 const bot = new Telegraf(process.env.BOT_TOKEN);
+
+bot.use(session());
 
 const ADMIN_ID = Number(process.env.ADMIN_ID);
 const CHANNEL_ID = Number(process.env.CHANNEL_ID);
 
+// =======================
+// کیفیت‌ها
+// =======================
+
 const QUALITIES = ['540P', '720P'];
 
 // =======================
-// توابع کمکی
+// نام قسمت‌ها
 // =======================
+
+const episodeNames = [
+  'اول',
+  'دوم',
+  'سوم',
+  'چهارم',
+  'پنجم',
+  'ششم',
+  'هفتم',
+  'هشتم',
+  'نهم',
+  'دهم',
+  'یازدهم',
+  'دوازدهم و آخر',
+  'سیزدهم',
+  'چهاردهم',
+  'پانزدهم',
+  'شانزدهم و آخر',
+  'هفدهم',
+  'هجدهم',
+  'نوزدهم',
+  'بیستم و آخر'
+];
 
 function getEpisodeName(num) {
-  const persianNumbers = ['اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم', 'هفتم', 'هشتم', 'نهم', 'دهم'];
-  
-  if (num <= 10) return persianNumbers[num - 1];
-  if ([12, 16, 20].includes(num)) return `${num}م و آخر`;
-  return `${num}م`;
-}
-
-function cleanForHashtag(text) {
-  return '#' + text
-    .trim()
-    .replace(/[^\w\sآ-ی]/g, '')
-    .replace(/\s+/g, '_')
-    .replace(/_+/g, '_');
+  return episodeNames[num - 1] || num;
 }
 
 // =======================
-// پیام‌ها
+// راهنما
 // =======================
 
 const helpMessage = `<b>📚 راهنمای ربات آپلود سریال</b>
 
-<b>🎬 دستورات:</b>
-/start — شروع سریال جدید
-/status — وضعیت فعلی
-/undo — لغو آخرین آپلود
-/done — پایان عملیات
-/help — نمایش این پیام
+<b>🎬 دستورات اصلی:</b>
 
-<b>⚠️ مراحل کار:</b>
-1. /start
-2. ارسال نام سریال
-3. ارسال فایل‌ها به ترتیب:
-   • قسمت ۱ - 540P
-   • قسمت ۱ - 720P
-   • قسمت ۲ - 540P
-   • ...
-`;
+/start - <b>شروع عملیات جدید</b>
+/done - <b>پایان عملیات جاری</b>
+/undo - <b>لغو آخرین فایل آپلودی</b>
+/status - <b>نمایش وضعیت فعلی</b>
+/help - <b>نمایش این راهنما</b>
+
+<b>📋 مراحل کار:</b>
+
+1️⃣ <b>/start رو بزن</b>
+2️⃣ <b>اسم سریال رو بفرست</b>
+3️⃣ <b>فایل‌ها رو به ترتیب بفرست:</b>
+   • <b>قسمت اول 540P</b>
+   • <b>قسمت اول 720P</b>
+   • <b>قسمت دوم 540P</b>
+   • <b>قسمت دوم 720P</b>
+   • <b>و همینطور تا آخر...</b>
+
+<b>⚠️ نکات مهم:</b>
+• <b>فقط ادمین می‌تونه از ربات استفاده کنه</b>
+• <b>فایل‌ها به کانال تنظیم شده ارسال می‌شن</b>
+• <b>با /undo می‌تونی آخرین فایل رو لغو کنی</b>
+• <b>با /status وضعیت فعلی رو ببین</b>
+• <b>اسم سریال باید بین ۲ تا ۱۰۰ کاراکتر باشه</b>`;
 
 // =======================
-// چک ادمین (تابع کمکی)
+// دستور /help
 // =======================
 
-function isAdmin(ctx) {
-  return ctx.from?.id === ADMIN_ID;
-}
-
-// =======================
-// دستور /help (عمومی)
-// =======================
-
-bot.command('help', (ctx) => {
-  return ctx.reply(helpMessage, { parse_mode: 'HTML' });
+bot.command('help', async (ctx) => {
+  if (ctx.from.id !== ADMIN_ID) {
+    return ctx.reply('<b>⛔ دسترسی ندارید</b>', { parse_mode: 'HTML' });
+  }
+  await ctx.reply(helpMessage, { parse_mode: 'HTML' });
 });
 
 // =======================
 // استارت
 // =======================
 
-bot.command('start', async (ctx) => {
-  // چک ادمین فقط برای دستوراتی که نیازه
-  if (!isAdmin(ctx)) {
-    return ctx.reply('<b>⛔ فقط ادمین اجازه استفاده دارد.</b>', { parse_mode: 'HTML' });
+bot.start(async (ctx) => {
+
+  if (ctx.from.id !== ADMIN_ID) {
+    return ctx.reply('<b>⛔ دسترسی ندارید</b>', { parse_mode: 'HTML' });
   }
 
   ctx.session = {
-    step: 'waiting_series',
+    step: 'series',
     series: '',
     hashtag: '',
     fileCount: 0,
-    uploadedMessages: []
+    lastMessageId: null // برای undo
   };
 
-  await ctx.reply('<b>🎬 نام سریال را ارسال کنید:</b>', { parse_mode: 'HTML' });
+  await ctx.reply('<b>🎬 اســم سریـالـت رو بفـرسـت.</b>', { parse_mode: 'HTML' });
 });
 
 // =======================
-// دریافت نام سریال
+// گرفتن اسم سریال
 // =======================
 
 bot.on('text', async (ctx) => {
-  // فقط ادمین
-  if (!isAdmin(ctx)) return;
-  
-  // رد کردن دستورات
-  if (ctx.message.text.startsWith('/')) return;
 
-  // فقط در مرحله waiting_series
-  if (ctx.session?.step !== 'waiting_series') return;
+  if (ctx.from.id !== ADMIN_ID) return;
 
-  const series = ctx.message.text.trim();
+  if (ctx.session?.step === 'series') {
 
-  if (series.length < 2 || series.length > 100) {
-    return ctx.reply('<b>⚠️ نام سریال باید بین ۲ تا ۱۰۰ کاراکتر باشد.</b>', { parse_mode: 'HTML' });
+    const series = ctx.message.text.trim();
+
+    // =======================
+    // پیشنهاد ۲: اعتبارسنجی نام سریال
+    // =======================
+    if (series.length < 2 || series.length > 100) {
+      return ctx.reply(
+        '<b>⚠️ اسم سریال باید بین ۲ تا ۱۰۰ کاراکتر باشه. دوباره بفرست.</b>',
+        { parse_mode: 'HTML' }
+      );
+    }
+
+    // =======================
+    // پیشنهاد ۵: بهبود ساخت هشتگ
+    // =======================
+    const hashtag = '#' + series
+      .replace(/[^\w\sآ-ی]/g, '') // حذف کاراکترهای خاص (با پشتیبانی فارسی)
+      .replace(/\s+/g, '_');
+
+    ctx.session.series = series;
+    ctx.session.hashtag = hashtag;
+    ctx.session.step = 'upload';
+
+    return ctx.reply(
+      `<b>✅ سریال "${series}" ثبت شد!
+🏷️ هشتگ: ${hashtag}
+
+📤 حالا فایل‌ها را به ترتیب بفرست:
+• قسمت اول 540P
+• قسمت اول 720P
+• قسمت دوم 540P
+• قسمت دوم 720P
+...</b>`,
+      { parse_mode: 'HTML' }
+    );
   }
-
-  const hashtag = cleanForHashtag(series);
-
-  ctx.session.series = series;
-  ctx.session.hashtag = hashtag;
-  ctx.session.step = 'uploading';
-
-  await ctx.reply(
-    `<b>✅ سریال ثبت شد:</b> ${series}\n` +
-    `<b>🏷️ هشتگ:</b> ${hashtag}\n\n` +
-    `<b>📤 حالا فایل‌ها را به ترتیب بفرستید:</b>`,
-    { parse_mode: 'HTML' }
-  );
 });
 
 // =======================
-// وضعیت
-// =======================
-
-bot.command('status', async (ctx) => {
-  if (!isAdmin(ctx)) return;
-
-  if (!ctx.session?.step) {
-    return ctx.reply('<b>❌ هیچ عملیات فعالی وجود ندارد. از /start شروع کنید.</b>', { parse_mode: 'HTML' });
-  }
-
-  const count = ctx.session.fileCount;
-  const completedEpisodes = Math.floor(count / 2);
-  const hasHalf = count % 2 !== 0;
-  const nextEpisode = Math.floor(count / 2) + 1;
-  const nextQuality = QUALITIES[count % 2];
-
-  let statusText = `<b>📊 وضعیت فعلی</b>\n\n` +
-    `🎬 سریال: ${ctx.session.series}\n` +
-    `🏷️ هشتگ: ${ctx.session.hashtag}\n` +
-    `📁 فایل‌های آپلود شده: ${count}\n` +
-    `✅ قسمت‌های کامل شده: ${completedEpisodes}\n`;
-
-  if (hasHalf) {
-    statusText += `⚠️ قسمت ${completedEpisodes + 1} فقط یک کیفیت دارد\n`;
-  }
-
-  statusText += `📌 فایل بعدی: قسمت ${getEpisodeName(nextEpisode)} • ${nextQuality}`;
-
-  await ctx.reply(statusText, { parse_mode: 'HTML' });
-});
-
-// =======================
-// Undo
+// پیشنهاد ۳: دستور /undo
 // =======================
 
 bot.command('undo', async (ctx) => {
-  if (!isAdmin(ctx)) return;
+  if (ctx.from.id !== ADMIN_ID) return;
 
-  if (!ctx.session?.uploadedMessages?.length) {
-    return ctx.reply('<b>⚠️ هیچ فایلی برای لغو وجود ندارد.</b>', { parse_mode: 'HTML' });
+  if (!ctx.session?.step) {
+    return ctx.reply('<b>⚠️ هیچ عملیات فعالی نیست. /start رو بزن</b>', { parse_mode: 'HTML' });
   }
 
-  const lastMsg = ctx.session.uploadedMessages.pop();
-  const deletedEp = Math.floor((ctx.session.fileCount - 1) / 2) + 1;
-  const deletedQ = QUALITIES[(ctx.session.fileCount - 1) % 2];
-  ctx.session.fileCount--;
+  if (ctx.session.fileCount > 0) {
+    ctx.session.fileCount--;
+    const currentEpisode = Math.floor(ctx.session.fileCount / 2) + 1;
+    const currentQuality = QUALITIES[ctx.session.fileCount % 2];
+    const episodeName = getEpisodeName(currentEpisode);
 
-  try {
-    await bot.telegram.deleteMessage(CHANNEL_ID, lastMsg.message_id);
     await ctx.reply(
-      `<b>✅ فایل حذف شد:</b> قسمت ${getEpisodeName(deletedEp)} • ${deletedQ}`,
+      `<b>↩️ آخرین فایل لغو شد!
+📊 شمارنده فعلی: ${ctx.session.fileCount}
+📌 فایل بعدی: قسمت ${episodeName} • ${currentQuality}</b>`,
       { parse_mode: 'HTML' }
     );
-  } catch (err) {
-    await ctx.reply(
-      '<b>⚠️ فایل از کانال حذف نشد (ممکن است قبلاً حذف شده باشد).</b>',
-      { parse_mode: 'HTML' }
-    );
+  } else {
+    await ctx.reply('<b>⚠️ هیچ فایلی برای لغو وجود نداره</b>', { parse_mode: 'HTML' });
+  }
+});
+
+// =======================
+// پیشنهاد ۶: دستور /status
+// =======================
+
+bot.command('status', async (ctx) => {
+  if (ctx.from.id !== ADMIN_ID) return;
+
+  if (!ctx.session?.step) {
+    return ctx.reply('<b>ℹ️ هیچ عملیات فعالی نیست. /start رو بزن</b>', { parse_mode: 'HTML' });
   }
 
-  // نمایش فایل بعدی
-  const nextEp = Math.floor(ctx.session.fileCount / 2) + 1;
-  const nextQ = QUALITIES[ctx.session.fileCount % 2];
+  const currentEpisode = ctx.session.fileCount > 0 
+    ? Math.floor((ctx.session.fileCount - 1) / 2) + 1 
+    : 1;
+  const nextQuality = QUALITIES[ctx.session.fileCount % 2];
+  const nextEpisode = Math.floor(ctx.session.fileCount / 2) + 1;
+  const nextEpisodeName = getEpisodeName(nextEpisode);
+
   await ctx.reply(
-    `<b>📌 فایل بعدی:</b> قسمت ${getEpisodeName(nextEp)} • ${nextQ}`,
+    `<b>📊 وضعیت فعلی:
+
+🎬 سریال: ${ctx.session.series}
+🏷️ هشتگ: ${ctx.session.hashtag}
+📁 تعداد فایل‌های آپلودی: ${ctx.session.fileCount}
+✅ آخرین قسمت تکمیل شده: ${currentEpisode}
+📌 فایل بعدی: قسمت ${nextEpisodeName} • ${nextQuality}
+📌 مرحله: ${ctx.session.step === 'series' ? 'دریافت نام سریال' : 'آپلود فایل'}</b>`,
     { parse_mode: 'HTML' }
   );
 });
@@ -197,97 +222,141 @@ bot.command('undo', async (ctx) => {
 // =======================
 
 bot.on(['video', 'document'], async (ctx) => {
-  if (!isAdmin(ctx)) return;
 
-  if (ctx.session?.step !== 'uploading') {
-    return ctx.reply('<b>⚠️ ابتدا با /start شروع کنید.</b>', { parse_mode: 'HTML' });
+  if (ctx.from.id !== ADMIN_ID) return;
+
+  if (ctx.session?.step !== 'upload') {
+    return ctx.reply('<b>⚠️ اول /start را بزن</b>', { parse_mode: 'HTML' });
   }
 
-  const count = ctx.session.fileCount;
-  const episode = Math.floor(count / 2) + 1;
-  const quality = QUALITIES[count % 2];
-  const episodeName = getEpisodeName(episode);
-
-  const caption = `<b>${ctx.session.hashtag}</b>
-
-🎬 قسمت ${episodeName}
-📺 کیفیت ${quality}
-🔖 زیرنویس چسبیده فارسی
-🌐 @KoreaMixPlus • @FaKorea`;
-
   try {
-    let sentMessage;
 
-    if (ctx.message.video) {
-      sentMessage = await bot.telegram.sendVideo(CHANNEL_ID, ctx.message.video.file_id, {
-        caption,
-        parse_mode: 'HTML'
-      });
-    } else if (ctx.message.document) {
-      sentMessage = await bot.telegram.sendDocument(CHANNEL_ID, ctx.message.document.file_id, {
-        caption,
-        parse_mode: 'HTML'
-      });
-    }
+    // =======================
+    // محاسبه قسمت و کیفیت
+    // =======================
 
-    // ذخیره اطلاعات برای undo
-    ctx.session.uploadedMessages.push({
-      message_id: sentMessage.message_id
-    });
+    const current = ctx.session.fileCount;
+
+    const episode = Math.floor(current / 2) + 1;
+
+    const quality = QUALITIES[current % 2];
+
+    const episodeName = getEpisodeName(episode);
+
+    // =======================
+    // کپشن
+    // =======================
+
+    const caption =
+`<b>🎥 سریال "${ctx.session.hashtag}"
+💠 قسمت ${episodeName}
+🔸 کیفیت ${quality}
+🔹 زیرنویس چسبیده فارسی
+🌐 @KoreaMixPlus • @FaKorea 🌐</b>`;
+
+    // =======================
+    // افزایش شمارنده
+    // =======================
 
     ctx.session.fileCount++;
 
-    // پیام پیشرفت
-    const nextEp = Math.floor(ctx.session.fileCount / 2) + 1;
-    const nextQ = QUALITIES[ctx.session.fileCount % 2];
+    // =======================
+    // ارسال
+    // =======================
+
+    let sentMessage;
+
+    if (ctx.message.document) {
+
+      sentMessage = await bot.telegram.sendDocument(
+        CHANNEL_ID,
+        ctx.message.document.file_id,
+        {
+          caption,
+          parse_mode: 'HTML'
+        }
+      );
+    }
+
+    else if (ctx.message.video) {
+
+      sentMessage = await bot.telegram.sendVideo(
+        CHANNEL_ID,
+        ctx.message.video.file_id,
+        {
+          caption,
+          parse_mode: 'HTML'
+        }
+      );
+    }
+
+    // ذخیره آیدی پیام برای امکان undo در آینده
+    ctx.session.lastMessageId = sentMessage?.message_id;
+
+    // =======================
+    // پیشنهاد ۴: نمایش پیشرفت
+    // =======================
+    const nextEpisode = Math.floor(ctx.session.fileCount / 2) + 1;
+    const nextQuality = QUALITIES[ctx.session.fileCount % 2];
+    const nextEpisodeName = getEpisodeName(nextEpisode);
 
     await ctx.reply(
-      `<b>✅ آپلود شد:</b> قسمت ${episodeName} • ${quality}\n` +
-      `📊 کل فایل‌ها: ${ctx.session.fileCount}\n` +
-      `📌 بعدی: قسمت ${getEpisodeName(nextEp)} • ${nextQ}`,
+      `<b>✅ قسمت ${episodeName} • ${quality} آپلود شد
+📊 کل فایل‌های آپلودی: ${ctx.session.fileCount}
+📌 فایل بعدی: قسمت ${nextEpisodeName} • ${nextQuality}</b>`,
       { parse_mode: 'HTML' }
     );
 
   } catch (err) {
-    console.error('Upload Error:', err);
-    await ctx.reply(`<b>❌ خطا در آپلود:</b> ${err.message}`, { parse_mode: 'HTML' });
+
+    // =======================
+    // پیشنهاد ۱: مدیریت خطای بهتر
+    // =======================
+    console.error('❌ خطا در ارسال فایل:', {
+      message: err.message,
+      code: err.code,
+      description: err.description,
+      session: ctx.session
+    });
+
+    // برگردوندن شمارنده به عقب در صورت خطا
+    if (ctx.session.fileCount > 0) {
+      ctx.session.fileCount--;
+    }
+
+    await ctx.reply(
+      `<b>❌ خطا در ارسال فایل: ${err.message}
+🔄 شمارنده به عقب برگشت. دوباره تلاش کن.</b>`,
+      { parse_mode: 'HTML' }
+    );
   }
 });
 
 // =======================
-// پایان عملیات
+// پایان
 // =======================
 
 bot.command('done', async (ctx) => {
-  if (!isAdmin(ctx)) return;
 
-  if (!ctx.session?.series) {
-    return ctx.reply('<b>❌ هیچ عملیات فعالی وجود ندارد.</b>', { parse_mode: 'HTML' });
-  }
+  if (ctx.from.id !== ADMIN_ID) return;
 
   const totalEpisodes = Math.floor(ctx.session.fileCount / 2);
 
+  ctx.session = null;
+
   await ctx.reply(
-    `<b>🎉 عملیات با موفقیت پایان یافت!</b>\n\n` +
-    `📽️ سریال: ${ctx.session.series}\n` +
-    `📊 تعداد قسمت‌های آپلود شده: ${totalEpisodes}\n` +
-    `✅ تمام شد!`,
+    `<b>✅ عملیات پایان یافت
+📊 مجموع قسمت‌های آپلود شده: ${totalEpisodes}
+🎉 کارت تموم شد!</b>`,
     { parse_mode: 'HTML' }
   );
-
-  ctx.session = null;
 });
 
 // =======================
 // اجرا
 // =======================
 
-bot.launch()
-  .then(() => {
-    console.log('🤖 ربات با موفقیت راه‌اندازی شد');
-    console.log('👤 فقط ادمین می‌تواند استفاده کند');
-  })
-  .catch(err => console.error('خطا در راه‌اندازی:', err));
+bot.launch();
 
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+console.log('🤖 Bot Started...');
+console.log('📚 برای راهنما /help رو بزنید');
