@@ -160,8 +160,9 @@ bot.use(async (ctx, next) => {
 function generateHashtag(text) {
   return '#'
     + text
-      .replace(/[^
-\p{L}\p{N}\s]/gu, '')
+      .replace(/[^\p{L}\p{N}\s]/gu, '')
+      .replace(/\s+/g, '_');
+}\p{N}\s]/gu, '')
       .replace(/\s+/g, '_');
 }
 
