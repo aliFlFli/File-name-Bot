@@ -208,7 +208,7 @@ async function safeSend(method, ...args) {
 
 bot.start(async (ctx) => {
   await ctx.reply(
-    '<b>به کــــپشــــن یـــــار خـوش اومـدی 💠.\n @CapYarBot</b>',
+    '<b>💠 به کــــپشــــن یـــــار خوش اومدی.\n @CapYarBot</b>',
     { parse_mode: 'HTML', ...glassMainKeyboard }
   );
 });
