@@ -136,7 +136,7 @@ const helpMessage = `
 ↩️ حذف آخرین - حذف آخرین فایل آپلود شده
 ✅ پایان - پایان عملیات
 ❌ لغو - لغو کامل عملیات
-@KoreaMixPlus • @FaKorea
+@CapYarBot
 `;
 
 // =====================================
@@ -208,7 +208,7 @@ async function safeSend(method, ...args) {
 
 bot.start(async (ctx) => {
   await ctx.reply(
-    '<b>به کــــپشــــن یـــــار خـوش اومـدی.💠</b>',
+    '<b>به کــــپشــــن یـــــار خـوش اومـدی 💠.\n @CapYarBot</b>',
     { parse_mode: 'HTML', ...glassMainKeyboard }
   );
 });
