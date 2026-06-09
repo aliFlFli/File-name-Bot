@@ -158,16 +158,18 @@ const glassMainKeyboard = {
   reply_markup: {
     inline_keyboard: [
       [
-        { text: '💠 شروع عملیات', callback_data: 'glass_start' }
+        { text: '💠 شروع عملیات', callback_data: 'glass_start', style: 'primary' }
       ],
       [
-        { text: '📊 وضعیت فعلی', callback_data: 'glass_status' },
-        { text: '↩️ حذف آخرین', callback_data: 'glass_undo' },
-        { text: '✅ پایان آپلود', callback_data: 'glass_done' }
+        { text: '📊 وضعیت فعلی', callback_data: 'glass_status', style: 'success' },
+        { text: '↩️ حذف آخرین', callback_data: 'glass_undo', style: 'danger' },
+        { text: '✅ پایان آپلود', callback_data: 'glass_done', style: 'success' }
       ],
       [
-        { text: '❌ لغو عملیات', callback_data: 'glass_cancel' },
-        { text: '📚 راهنما', callback_data: 'glass_help' }
+        { text: '❌ لغو عملیات', callback_data: 'glass_cancel', style: 'danger' }
+      ],
+      [
+        { text: '📚 راهنما', callback_data: 'glass_help', style: 'primary' }
       ]
     ]
   }
@@ -177,7 +179,7 @@ const glassBackKeyboard = {
   reply_markup: {
     inline_keyboard: [
       [
-        { text: '🔙 بازگشت به منو', callback_data: 'glass_back' }
+        { text: '🔙 بازگشت به منو', callback_data: 'glass_back', style: 'primary' }
       ]
     ]
   }
@@ -271,7 +273,7 @@ async function deleteMessage(ctx, messageId) {
 
 bot.start(async (ctx) => {
   await ctx.reply(
-    '<b>💠 به ربات آپلودر هوشمند خوش اومدی\n@CapYarBot</b>\n\n📤 فقط کافیست فایل رو بفرستی، من خودکار تشخیص میدم!',
+    '<b>💠 به کــــپشــــن یـــــار خوش اومدی.\n @CapYarBot</b>\n\n📤 فقط کافیست فایل رو بفرستی، من خودکار تشخیص میدم!',
     { parse_mode: 'HTML', ...glassMainKeyboard }
   );
 });
@@ -505,6 +507,9 @@ bot.action('glass_back', async (ctx) => {
 // =====================================
 
 bot.on('text', async (ctx) => {
+  // چک کردن دستورات ادمین اول
+  if (ctx.message.text.startsWith('/')) return;
+  
   const sessionData = getUserSession(ctx.from.id);
   if (!sessionData) return;
   if (sessionData.step !== 'series') return;
@@ -630,20 +635,12 @@ bot.on(['document', 'video'], async (ctx) => {
 });
 
 // =====================================
-// UNKNOWN MESSAGE
-// =====================================
-
-bot.on('message', async (ctx) => {
-  // ignore
-});
-
-// =====================================
 // BOT START
 // =====================================
 
 bot.launch().then(() => {
-  log('🤖 Bot Started with Smart Upload ✨');
-  console.log('✅ ربات آپلودر هوشمند با موفقیت اجرا شد!');
+  log('🤖 Bot Started with Glass Buttons ✨');
+  console.log('✅ ربات با موفقیت اجرا شد!');
   console.log('📋 دستورات ادمین: /addserial , /serials , /delserial');
 }).catch((err) => {
   log(`LAUNCH ERROR: ${err.message}`);
