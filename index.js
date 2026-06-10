@@ -322,7 +322,7 @@ async function deleteMessage(ctx, messageId) {
 
 bot.start(async (ctx) => {
   await ctx.reply(
-    '<b>💠 به کــــپشــــن یـــــار خوش اومدی..\n @CapYarBot</b>',
+    '<b>💠 به کــــپشــــن یـــــار خوش اومدی.\n @CapYarBot</b>',
     { parse_mode: 'HTML', ...glassMainKeyboard }
   );
 });
