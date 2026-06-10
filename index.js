@@ -625,7 +625,7 @@ bot.on(['document', 'video'], async (ctx) => {
   const hashtag = serial.hashtag;
   
   // ساخت کپشن
-  const caption = `<b>✨ ${hashtag}
+  const caption = `<b>✨ سریال کره‌ای ${hashtag}
 💠 قسمت ${episodeName}
 🔸 کیفیت ${quality}
 🔹 زیرنویس چسبیده فارسی
