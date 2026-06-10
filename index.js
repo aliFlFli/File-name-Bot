@@ -49,83 +49,132 @@ function log(text) {
 }
 
 // =====================================
-// SESSIONS DATABASE
+// IN-MEMORY STORAGE (بهینه)
 // =====================================
 
-function loadSessions() {
+const userSessions = new Map();     // userId → sessionData
+const serialsMap = new Map();       // key (lowercase) → serialData
+
+let lastSaveTime = Date.now();
+let isSaving = false;
+
+// =====================================
+// LOAD INITIAL DATA
+// =====================================
+
+function loadInitialData() {
+  // Load Serials
   try {
-    return JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
-  } catch {
-    return {};
+    if (fs.existsSync(SERIALS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(SERIALS_FILE, 'utf8'));
+      for (const [key, value] of Object.entries(data)) {
+        serialsMap.set(key, value);
+      }
+      log(`📚 ${serialsMap.size} سریال از فایل لود شد`);
+    }
+  } catch (err) {
+    log(`خطا در لود سریال‌ها: ${err.message}`);
+  }
+
+  // Load Sessions
+  try {
+    if (fs.existsSync(SESSION_FILE)) {
+      const data = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
+      for (const [key, value] of Object.entries(data)) {
+        userSessions.set(Number(key), value);
+      }
+      log(`👤 ${userSessions.size} جلسه فعال لود شد`);
+    }
+  } catch (err) {
+    log(`خطا در لود سشن‌ها: ${err.message}`);
   }
 }
 
-function saveSessions(data) {
-  fs.writeFileSync(SESSION_FILE, JSON.stringify(data, null, 2));
+// =====================================
+// SAVE FUNCTIONS (بهینه)
+// =====================================
+
+function saveSerialsToFile() {
+  if (isSaving) return;
+  isSaving = true;
+  try {
+    const data = Object.fromEntries(serialsMap);
+    fs.writeFileSync(SERIALS_FILE, JSON.stringify(data, null, 2));
+    lastSaveTime = Date.now();
+    log('💾 سریال‌ها ذخیره شدند');
+  } catch (err) {
+    log(`❌ خطا در ذخیره سریال‌ها: ${err.message}`);
+  } finally {
+    isSaving = false;
+  }
 }
 
+function saveSessionsToFile() {
+  try {
+    const data = Object.fromEntries(userSessions);
+    fs.writeFileSync(SESSION_FILE, JSON.stringify(data, null, 2));
+    lastSaveTime = Date.now();
+  } catch (err) {
+    log(`❌ خطا در ذخیره سشن‌ها: ${err.message}`);
+  }
+}
+
+function autoSave() {
+  const timeSince = Date.now() - lastSaveTime;
+  if (timeSince > 30000) {
+    log(`🔄 ذخیره خودکار (${timeSince}ms از آخرین ذخیره)`);
+    if (userSessions.size > 0) saveSessionsToFile();
+    if (serialsMap.size > 0) saveSerialsToFile();
+  }
+}
+
+// =====================================
+// SESSIONS DATABASE (با Map)
+// =====================================
+
 function getUserSession(userId) {
-  const sessions = loadSessions();
-  return sessions[userId] || null;
+  return userSessions.get(userId) || null;
 }
 
 function setUserSession(userId, data) {
-  const sessions = loadSessions();
-  sessions[userId] = data;
-  saveSessions(sessions);
+  userSessions.set(userId, data);
+  autoSave();
 }
 
 function deleteUserSession(userId) {
-  const sessions = loadSessions();
-  delete sessions[userId];
-  saveSessions(sessions);
+  userSessions.delete(userId);
+  autoSave();
 }
 
 // =====================================
-// SERIALS DATABASE
+// SERIALS DATABASE (با Map)
 // =====================================
-
-function loadSerials() {
-  try {
-    return JSON.parse(fs.readFileSync(SERIALS_FILE, 'utf8'));
-  } catch {
-    return {};
-  }
-}
-
-function saveSerials(data) {
-  fs.writeFileSync(SERIALS_FILE, JSON.stringify(data, null, 2));
-}
 
 function addSerial(englishName, persianHashtag, addedBy) {
-  const serials = loadSerials();
   const key = englishName.toLowerCase();
-  serials[key] = {
+  serialsMap.set(key, {
     english: englishName,
     hashtag: persianHashtag,
     addedBy: addedBy,
     addedAt: Date.now()
-  };
-  saveSerials(serials);
+  });
+  saveSerialsToFile();
   return true;
 }
 
 function removeSerial(englishName) {
-  const serials = loadSerials();
   const key = englishName.toLowerCase();
-  if (serials[key]) {
-    delete serials[key];
-    saveSerials(serials);
+  if (serialsMap.has(key)) {
+    serialsMap.delete(key);
+    saveSerialsToFile();
     return true;
   }
   return false;
 }
 
 function detectSerial(fileName) {
-  const serials = loadSerials();
   const lowerName = fileName.toLowerCase();
-  
-  for (const [key, value] of Object.entries(serials)) {
+  for (const [key, value] of serialsMap) {
     if (lowerName.includes(key)) {
       return value;
     }
@@ -134,7 +183,7 @@ function detectSerial(fileName) {
 }
 
 function getAllSerials() {
-  return Object.values(loadSerials());
+  return Array.from(serialsMap.values());
 }
 
 // =====================================
@@ -273,7 +322,7 @@ async function deleteMessage(ctx, messageId) {
 
 bot.start(async (ctx) => {
   await ctx.reply(
-    '<b>💠 به کــــپشــــن یـــــار خوش اومدی.\n @CapYarBot</b>',
+    '<b>💠 به کــــپشــــن یـــــار خوش اومدی..\n @CapYarBot</b>',
     { parse_mode: 'HTML', ...glassMainKeyboard }
   );
 });
@@ -635,13 +684,30 @@ bot.on(['document', 'video'], async (ctx) => {
 });
 
 // =====================================
+// GRACEFUL SHUTDOWN
+// =====================================
+
+async function shutdown() {
+  log('🛑 در حال ذخیره نهایی داده‌ها قبل از خاموشی...');
+  if (userSessions.size > 0) saveSessionsToFile();
+  if (serialsMap.size > 0) saveSerialsToFile();
+  await bot.stop('SIGTERM');
+  process.exit(0);
+}
+
+// =====================================
 // BOT START
 // =====================================
 
 bot.launch().then(() => {
-  log('🤖 Bot Started with Glass Buttons ✨');
-  console.log('✅ ربات با موفقیت اجرا شد!');
+  loadInitialData();
+  
+  log('🤖 Bot Started with Glass Buttons + In-Memory Map ✨');
+  console.log('✅ ربات با موفقیت اجرا شد (ذخیره‌سازی بهینه با Map)');
   console.log('📋 دستورات ادمین: /addserial , /serials , /delserial');
+
+  // Auto save every 30 seconds
+  setInterval(autoSave, 30000);
 }).catch((err) => {
   log(`LAUNCH ERROR: ${err.message}`);
   console.error('❌ خطا در اجرای ربات:', err);
@@ -661,5 +727,5 @@ process.on('unhandledRejection', (err) => {
   console.error('Unhandled Rejection:', err);
 });
 
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.once('SIGINT', shutdown);
+process.once('SIGTERM', shutdown);
