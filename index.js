@@ -190,7 +190,7 @@ const glassBackKeyboard = {
 // =====================================
 
 const helpMessage = `
-<b>💠 راهنمای ربات آپلودر هوشمند</b>
+<b>💠 راهنمای ربات کــــپشــــن یـــــار </b>
 
 🎬 <b>شروع عملیات:</b> شروع آپلود دستی سریال
 📊 <b>وضعیت:</b> مشاهده وضعیت آپلودهای خود
@@ -273,7 +273,7 @@ async function deleteMessage(ctx, messageId) {
 
 bot.start(async (ctx) => {
   await ctx.reply(
-    '<b>💠 به کــــپشــــن یـــــار خوش اومدی.\n @CapYarBot</b>\n\n📤 فقط کافیست فایل رو بفرستی، من خودکار تشخیص میدم!',
+    '<b>💠 به کــــپشــــن یـــــار خوش اومدی.\n @CapYarBot</b>',
     { parse_mode: 'HTML', ...glassMainKeyboard }
   );
 });
